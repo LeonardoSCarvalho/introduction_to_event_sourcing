@@ -1,5 +1,10 @@
 import { getEventStoreDBTestClient } from '#core/testing/eventStoreDB';
-import { EventStoreDBClient } from '@eventstore/db-client';
+import {
+  ANY,
+  AppendResult,
+  EventStoreDBClient,
+  jsonEvent,
+} from '@eventstore/db-client';
 import { v4 as uuid } from 'uuid';
 
 export type Event<
@@ -68,12 +73,15 @@ export type ShoppingCartEvent =
   | ShoppingCartCanceled;
 
 const appendToStream = async (
-  _eventStore: EventStoreDBClient,
-  _streamName: string,
-  _events: ShoppingCartEvent[],
-): Promise<bigint> => {
+  eventStore: EventStoreDBClient,
+  streamName: string,
+  events: ShoppingCartEvent[],
+): Promise<AppendResult> => {
   // TODO: Fill append events logic here.
-  return Promise.reject(new Error('Not implemented!'));
+  const serializedEvents = events.map(jsonEvent);
+  return eventStore.appendToStream(streamName, serializedEvents, {
+    expectedRevision: ANY,
+  });
 };
 
 describe('Appending events', () => {
@@ -131,12 +139,7 @@ describe('Appending events', () => {
 
     const streamName = `shopping_cart-${shoppingCartId}`;
 
-    const appendedEventsCount = await appendToStream(
-      eventStore,
-      streamName,
-      events,
-    );
-
-    expect(appendedEventsCount).toBe(BigInt(events.length - 1));
+    const appendResult = await appendToStream(eventStore, streamName, events);
+    expect(Number(appendResult.nextExpectedRevision)).toBe(events.length - 1);
   });
 });
